@@ -2,8 +2,35 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { Package, Users, Heart, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { apiGet } from "@/lib/api";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 const Dashboard = () => {
+  useAuthGuard();
+
+  const [counts, setCounts] = useState({
+    inventory: 0,
+    items: 0,
+    images: 0,
+    donations: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    apiGet<{ inventory: number; items: number; images: number; donations: number }>("/analytics/counts")
+      .then((data) => {
+        setCounts(data);
+        setError(null);
+      })
+      .catch((err) => {
+        setError("Failed to load analytics counts");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <DashboardLayout>
       <div className="space-y-8">
@@ -12,33 +39,34 @@ const Dashboard = () => {
           <p className="text-muted-foreground">Welcome back to your museum collection management system</p>
         </div>
 
+        {error && <div className="text-red-500">{error}</div>}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatsCard
-            title="Total Inventory Items"
-            value="1,247"
+            title="Total Inventory"
+            value={loading ? "..." : counts.inventory}
             icon={Package}
-            trend="+12% from last month"
+            trend={loading ? undefined : undefined}
             trendUp
           />
           <StatsCard
-            title="Active Donations"
-            value="89"
-            icon={Heart}
-            trend="+5 this week"
-            trendUp
-          />
-          <StatsCard
-            title="Registered Users"
-            value="45"
-            icon={Users}
-            trend="+3 new users"
-            trendUp
-          />
-          <StatsCard
-            title="Items on Display"
-            value="342"
+            title="Total Inventory (Sub)Items"
+            value={loading ? "..." : counts.items}
             icon={TrendingUp}
-            trend="68% of collection"
+            trend={loading ? undefined : undefined}
+            trendUp
+          />
+          <StatsCard
+            title="Total Images"
+            value={loading ? "..." : counts.images}
+            icon={Users}
+            trend={loading ? undefined : undefined}
+            trendUp
+          />
+          <StatsCard
+            title="Total Donations"
+            value={loading ? "..." : counts.donations}
+            icon={Heart}
+            trend={loading ? undefined : undefined}
             trendUp
           />
         </div>

@@ -1,73 +1,82 @@
-# Welcome to your Lovable project
+# Museum Admin Dashboard
 
-## Project info
+A modern, responsive dashboard for managing museum collections, inventory, donations, and users. Built with React, Vite, TypeScript, Tailwind CSS, and shadcn/ui.
 
-**URL**: https://lovable.dev/projects/74f5bbaa-7c33-4d51-8baa-5a1cff332bbc
+## Features
 
-## How can I edit this code?
+- **Dashboard Overview:** Visual summary of inventory, donations, users, and items on display.
+- **Inventory Management:** Track, search, and categorize museum items.
+- **Donations:** Manage donor information and donation records.
+- **User Management:** Add, view, and manage system users.
+- **Settings:** Configure API endpoints and application settings.
+- **Responsive UI:** Clean, accessible design with sidebar navigation.
+- **404 Handling:** Friendly not-found page for invalid routes.
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- [React 18](https://react.dev/)
+- [Vite](https://vitejs.dev/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Tailwind CSS](https://tailwindcss.com/)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [Radix UI](https://www.radix-ui.com/)
+- [Lucide Icons](https://lucide.dev/)
+- [React Router](https://reactrouter.com/)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/74f5bbaa-7c33-4d51-8baa-5a1cff332bbc) and start prompting.
+## Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js (v18+ recommended)
+- npm or yarn
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+npm install
+# or
+yarn install
 ```
 
-**Edit a file directly in GitHub**
+### Development
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run dev
+# or
+yarn dev
+```
 
-**Use GitHub Codespaces**
+The app will be available at `http://localhost:5173`.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Build
 
-## What technologies are used for this project?
+```bash
+npm run build
+# or
+yarn build
+```
 
-This project is built with:
+### Lint
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```bash
+npm run lint
+# or
+yarn lint
+```
 
-## How can I deploy this project?
+## Project Structure
 
-Simply open [Lovable](https://lovable.dev/projects/74f5bbaa-7c33-4d51-8baa-5a1cff332bbc) and click on Share -> Publish.
+- `src/pages/` — Main app pages (Dashboard, Inventory, Donations, Users, Settings, NotFound)
+- `src/components/layout/` — Layout and sidebar navigation
+- `src/components/ui/` — Reusable UI components (cards, buttons, forms, etc.)
+- `src/hooks/` — Custom React hooks
+- `src/lib/` — Utility functions
 
-## Can I connect a custom domain to my Lovable project?
+## Customization
 
-Yes, you can!
+- **Branding:** Update `public/favicon.ico` and meta tags in `index.html`.
+- **Theme:** Modify Tailwind and shadcn/ui configs for custom colors and styles.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT

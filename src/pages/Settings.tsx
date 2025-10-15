@@ -3,8 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuthGuard } from "@/hooks/useAuthGuard";
 
 const Settings = () => {
+  useAuthGuard();
+
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-3xl">

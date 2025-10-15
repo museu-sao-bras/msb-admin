@@ -9,6 +9,8 @@ import Donations from "./pages/Donations";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
 const queryClient = new QueryClient();
 
@@ -19,6 +21,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/donations" element={<Donations />} />
