@@ -1,17 +1,29 @@
-import { LayoutDashboard, Package, Users, Heart, Settings } from "lucide-react";
+import { LayoutDashboard, Package, Users, Heart } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
 const navItems = [
 	{ title: "Dashboard", icon: LayoutDashboard, path: "/" },
 	{ title: "Inventory", icon: Package, path: "/inventory" },
-	{ title: "Donations", icon: Heart, path: "/donations" },
-	{ title: "Users", icon: Users, path: "/users" },
-	{ title: "Settings", icon: Settings, path: "/settings" },
+	{ title: "Users", icon: Users, path: "/users" }
 ];
 
 export const Sidebar = () => {
-	return (
+	 const [user, setUser] = useState<{ user_name?: string; email?: string } | null>(null);
+	 useEffect(() => {
+		 const stored = localStorage.getItem("user");
+		 if (stored) {
+			 try {
+				 setUser(JSON.parse(stored));
+			 } catch {
+				 setUser(null);
+			 }
+		 } else {
+			 setUser(null);
+		 }
+	 }, []);
+	 return (
 		<aside className="w-64 h-screen fixed left-0 top-0 glass border-r border-[hsl(var(--glass-border)_/_0.3)] p-6 flex flex-col">
 			<div className="mb-8">
 				<h1 className="text-2xl font-bold text-gradient">Museum Admin</h1>
@@ -51,19 +63,19 @@ export const Sidebar = () => {
 				Logout
 			</button>
 
-			<div className="mt-auto pt-6 border-t border-[hsl(var(--glass-border)_/_0.3)]">
-				<div className="flex items-center gap-3">
-					<div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-bold">
-						MA
-					</div>
-					<div>
-						<p className="text-sm font-medium">Museum Admin</p>
-						<p className="text-xs text-muted-foreground">
-							admin@museum.org
-						</p>
-					</div>
-				</div>
-			</div>
+			   <div className="mt-auto pt-6 border-t border-[hsl(var(--glass-border)_/_0.3)]">
+				   <div className="flex items-center gap-3">
+					   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-sm font-bold">
+						   {user?.user_name ? user.user_name[0]?.toUpperCase() : "?"}
+					   </div>
+					   <div>
+						   <p className="text-sm font-medium">{user?.user_name ?? "Unknown User"}</p>
+						   <p className="text-xs text-muted-foreground">
+							   {user?.email ?? "No email"}
+						   </p>
+					   </div>
+				   </div>
+			   </div>
 		</aside>
 	);
 };
