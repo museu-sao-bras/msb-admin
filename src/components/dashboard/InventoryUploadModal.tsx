@@ -1,6 +1,5 @@
-import * as React from "react";
-import { useState } from "react";
-import { apiPost } from "@/lib/api";
+import React, { useState, useEffect, useRef } from "react";
+import { apiPost, apiGet } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +15,8 @@ interface ImageInput {
     description?: string;
     date_taken?: string;
     photographer?: string;
+    // local File object for upload
+    file?: File | null;
 }
 
 interface ItemInput {
@@ -38,6 +39,16 @@ interface InventoryInput {
     comments?: string;
     context?: string;
     inventory_items: ItemInput[];
+    donation_information?: DonationInfo[];
+}
+
+interface DonationInfo {
+    donor_name?: string;
+    donor_email?: string;
+    donor_phone?: string;
+    donor_address?: string;
+    donation_date?: string;
+    donation_notes?: string;
 }
 
 const LOCATION_OPTIONS = [
@@ -62,6 +73,16 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
         date_of_article: "",
         comments: "",
         context: "",
+        donation_information: [
+            {
+                donor_name: "",
+                donor_email: "",
+                donor_phone: "",
+                donor_address: "",
+                donation_date: "",
+                donation_notes: "",
+            }
+        ],
         inventory_items: [
             {
                 physical_inventory_number: "",
@@ -88,6 +109,12 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
     const [loanBeginPickerOpen, setLoanBeginPickerOpen] = useState<number | null>(null);
     const [loanEndPickerOpen, setLoanEndPickerOpen] = useState<number | null>(null);
     const [dateTakenPickerOpen, setDateTakenPickerOpen] = useState<{ itemIdx: number; imgIdx: number } | null>(null);
+    const [donationDatePickerOpen, setDonationDatePickerOpen] = useState<{ idx: number } | null>(null);
+    const [donationQuery, setDonationQuery] = useState<string>("");
+    const [donationResults, setDonationResults] = useState<any[]>([]);
+    const [donationLoading, setDonationLoading] = useState(false);
+    const [activeDonIdx, setActiveDonIdx] = useState<number | null>(null);
+    const donationDebounceRef = useRef<number | null>(null);
 
     const handleChange = (field: keyof InventoryInput, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -184,7 +211,67 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
         // You may want to POST to an upload endpoint here, for now just set file name
         // Replace with your actual upload logic
         const filePath = file.name;
-        handleImageChange(itemIdx, imgIdx, "file_path", filePath);
+        // store file object alongside file_path so we can upload after creating inventory
+        setForm(prev => ({
+            ...prev,
+            inventory_items: prev.inventory_items.map((it, i) =>
+                i === itemIdx
+                    ? {
+                        ...it,
+                        images: it.images.map((img, j) => j === imgIdx ? { ...img, file_path: filePath, file } : img),
+                    }
+                    : it
+            ),
+        }));
+    };
+
+    const handleDonationChange = (idx: number, field: keyof DonationInfo, value: string) => {
+        setForm(prev => ({
+            ...prev,
+            donation_information: (prev.donation_information || []).map((d, i) => i === idx ? { ...(d || {}), [field]: value } : d),
+        }));
+    };
+
+    // Debounced search for donation information by donor name
+    useEffect(() => {
+        if (donationDebounceRef.current) {
+            window.clearTimeout(donationDebounceRef.current);
+        }
+        if (!donationQuery || donationQuery.trim().length < 2 || activeDonIdx === null) {
+            setDonationResults([]);
+            setDonationLoading(false);
+            return;
+        }
+        setDonationLoading(true);
+        donationDebounceRef.current = window.setTimeout(async () => {
+            try {
+                const q = encodeURIComponent(donationQuery.trim());
+                const res = await apiGet<{ items: any[] }>(`/donation-information?query=${q}&limit=20&offset=0`);
+                setDonationResults(res.items || []);
+            } catch (err) {
+                console.warn('Donation search failed', err);
+                setDonationResults([]);
+            } finally {
+                setDonationLoading(false);
+            }
+        }, 400);
+        return () => {
+            if (donationDebounceRef.current) window.clearTimeout(donationDebounceRef.current);
+        };
+    }, [donationQuery, activeDonIdx]);
+
+    const applyDonationResult = (idx: number, result: any) => {
+        // populate fields from the selected existing donation info
+        handleDonationChange(idx, 'donor_name', result.donor_name || '');
+        handleDonationChange(idx, 'donor_email', result.donor_email || '');
+        handleDonationChange(idx, 'donor_phone', result.donor_phone || '');
+        handleDonationChange(idx, 'donor_address', result.donor_address || '');
+        handleDonationChange(idx, 'donation_date', result.donation_date || '');
+        handleDonationChange(idx, 'donation_notes', result.donation_notes || '');
+        // clear results
+        setDonationResults([]);
+        setDonationQuery('');
+        setActiveDonIdx(null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -205,7 +292,58 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
                 }
                 return obj;
             };
-            await apiPost("/inventory", clean(form));
+
+            // Also strip File objects before JSON serialization
+            const stripFiles = (obj: any): any => {
+                if (Array.isArray(obj)) return obj.map(stripFiles);
+                if (obj && typeof obj === "object") {
+                    const out: any = {};
+                    for (const k in obj) {
+                        const v = obj[k];
+                        // skip File instances
+                        if (v instanceof File) continue;
+                        out[k] = stripFiles(v);
+                    }
+                    return out;
+                }
+                return obj;
+            };
+
+            // take snapshot of current form (so we keep File refs)
+            const formSnapshot = form;
+            const payload = clean(stripFiles(formSnapshot));
+
+            const created = await apiPost("/inventory", payload) as any;
+
+            // after creating inventory records (which include image IDs), upload files for each image
+            try {
+                const token = localStorage.getItem("token");
+                for (let i = 0; i < (created.inventory_items || []).length; i++) {
+                    const createdItem = created.inventory_items[i];
+                    const originalItem = formSnapshot.inventory_items[i];
+                    if (!createdItem || !createdItem.images) continue;
+                    for (let j = 0; j < createdItem.images.length; j++) {
+                        const createdImage = createdItem.images[j];
+                        const originalImage = originalItem?.images?.[j];
+                        const file = originalImage?.file;
+                        if (!file) continue;
+
+                        const formData = new FormData();
+                        formData.append('file', file, file.name);
+
+                        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8090'}/images/upload/${createdImage.id}`, {
+                            method: 'POST',
+                            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                            body: formData,
+                        });
+                    }
+                }
+            } catch (upErr) {
+                // don't fail the whole operation, but surface a message
+                console.warn('One or more image uploads failed', upErr);
+                setError('Inventory created but some image uploads failed.');
+            }
+
             if (onSuccess) onSuccess();
             onClose();
         } catch (err) {
@@ -279,6 +417,67 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
                         value={form.context || ""}
                         onChange={e => handleChange("context", e.target.value)}
                     />
+                    <div className="border-t pt-4 mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-semibold">Donation Information</h3>
+                        </div>
+                        {(form.donation_information || []).map((don, donIdx) => (
+                            <div key={donIdx} className="mb-4 grid grid-cols-1 gap-3 relative">
+                                <Input
+                                    placeholder="Donor Name"
+                                    value={don?.donor_name || donationQuery}
+                                    onChange={e => {
+                                        handleDonationChange(donIdx, 'donor_name', e.target.value);
+                                        setDonationQuery(e.target.value);
+                                        setActiveDonIdx(donIdx);
+                                    }}
+                                />
+                                {/* Dropdown */}
+                                {activeDonIdx === donIdx && donationResults.length > 0 && (
+                                    <div className="absolute z-50 bg-background border rounded mt-1 w-full max-h-48 overflow-auto shadow">
+                                        {donationResults.map(r => (
+                                            <div key={r.id} className="p-2 hover:bg-accent/10 cursor-pointer" onClick={() => applyDonationResult(donIdx, r)}>
+                                                <div className="font-medium">{r.donor_name}</div>
+                                                <div className="text-xs text-muted-foreground">{r.donor_email}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <Input placeholder="Donor Email" value={don?.donor_email || ''} onChange={e => handleDonationChange(donIdx, 'donor_email', e.target.value)} />
+                                <Input placeholder="Donor Phone" value={don?.donor_phone || ''} onChange={e => handleDonationChange(donIdx, 'donor_phone', e.target.value)} />
+                                <Input placeholder="Donor Address" value={don?.donor_address || ''} onChange={e => handleDonationChange(donIdx, 'donor_address', e.target.value)} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Popover open={donationDatePickerOpen?.idx === donIdx} onOpenChange={open => setDonationDatePickerOpen(open ? { idx: donIdx } : null)}>
+                                        <PopoverTrigger asChild>
+                                            <div className="w-full relative">
+                                                <Input
+                                                    readOnly
+                                                    value={don?.donation_date ? format(new Date(don.donation_date), "yyyy-MM-dd") : ""}
+                                                    onClick={() => setDonationDatePickerOpen({ idx: donIdx })}
+                                                    className={don?.donation_date ? "" : "text-muted-foreground"}
+                                                />
+                                                {!don?.donation_date && (
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">Donation Date</span>
+                                                )}
+                                            </div>
+                                        </PopoverTrigger>
+                                        <PopoverContent align="end" className="p-0">
+                                            <Calendar
+                                                mode="single"
+                                                selected={don?.donation_date ? new Date(don.donation_date) : undefined}
+                                                onSelect={date => {
+                                                    handleDonationChange(donIdx, 'donation_date', date ? date.toISOString().slice(0,10) : '');
+                                                    setDonationDatePickerOpen(null);
+                                                }}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                    <Input placeholder="Donation Notes" value={don?.donation_notes || ''} onChange={e => handleDonationChange(donIdx, 'donation_notes', e.target.value)} />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                     <div className="border-t pt-4 mt-4">
                         <div className="flex items-center justify-between mb-2">
                             <h3 className="font-semibold">Inventory Items</h3>

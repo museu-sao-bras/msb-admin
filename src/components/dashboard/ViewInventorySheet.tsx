@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { API_BASE_URL } from "@/lib/api";
 import React from "react";
+import { format } from "date-fns";
 
 import type { InventoryRecord } from "@/pages/Inventory";
 
@@ -46,7 +47,7 @@ export const ViewInventorySheet: React.FC<Props> = ({ open, item, onClose }) => 
                                         {ii.images?.map(img => (
                                             <div key={img.id} className="border rounded p-1">
                                                 <img
-                                                    src={`${API_BASE_URL}/images/${img.file_path}`}
+                                                    src={`${API_BASE_URL}/${img.file_path}`}
                                                     alt={img.description ?? "Image"} className="w-20 h-20 object-cover rounded mb-1" />
                                                 <div><strong>Description:</strong> {img.description}</div>
                                                 <div><strong>Date Taken:</strong> {img.date_taken}</div>
@@ -60,7 +61,22 @@ export const ViewInventorySheet: React.FC<Props> = ({ open, item, onClose }) => 
                     </div>
                     <div className="mt-4">
                         <strong>Donation Information:</strong>
-                        <pre className="bg-muted p-2 rounded text-xs">{JSON.stringify(item.donation_information, null, 2)}</pre>
+                        {(item.donation_information && item.donation_information.length > 0) ? (
+                            <div className="space-y-2 mt-2">
+                                {item.donation_information.map((d, idx) => (
+                                    <div key={idx} className="border rounded p-2">
+                                        <div><strong>Donor Name:</strong> {d.donor_name ?? '—'}</div>
+                                        <div><strong>Email:</strong> {d.donor_email ?? '—'}</div>
+                                        <div><strong>Phone:</strong> {d.donor_phone ?? '—'}</div>
+                                        <div><strong>Address:</strong> {d.donor_address ?? '—'}</div>
+                                        <div><strong>Donation Date:</strong> {d.donation_date ? format(new Date(d.donation_date), 'yyyy-MM-dd') : '—'}</div>
+                                        <div><strong>Notes:</strong> {d.donation_notes ?? '—'}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-muted-foreground">No donation information</div>
+                        )}
                     </div>
                 </div>
                 <SheetClose asChild>

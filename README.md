@@ -80,3 +80,8 @@ yarn lint
 ## License
 
 MIT
+
+## Notes
+- storage option: `random storage space for boxes`
+- storage option: `reviewed and not kept (discarded)`
+- inventory item category: `suit jacket`
