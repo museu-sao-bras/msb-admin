@@ -151,7 +151,7 @@ const Dashboard = () => {
                     <div className="flex flex-col items-end min-w-[80px]">
                       {item.inventory_items?.[0]?.images?.[0]?.file_path && (
                         <img
-                          src={`${API_BASE_URL}/${item.inventory_items[0].images[0].file_path}`}
+                          src={`/api/images/${item.inventory_items[0].images[0].file_path}`}
                           alt={item.category || "Recent"}
                           className="w-12 h-12 object-cover rounded-md ml-4 border mb-1"
                         />
