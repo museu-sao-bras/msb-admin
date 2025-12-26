@@ -47,7 +47,7 @@ export const ViewInventorySheet: React.FC<Props> = ({ open, item, onClose }) => 
                                         {ii.images?.map(img => (
                                             <div key={img.id} className="border rounded p-1">
                                                 <img
-                                                    src={`${API_BASE_URL}/${img.file_path}`}
+                                                    src={`/api/images/${img.file_path}`}
                                                     alt={img.description ?? "Image"} className="w-20 h-20 object-cover rounded mb-1" />
                                                 <div><strong>Description:</strong> {img.description}</div>
                                                 <div><strong>Date Taken:</strong> {img.date_taken}</div>

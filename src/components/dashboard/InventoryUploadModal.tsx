@@ -331,7 +331,7 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
                         const formData = new FormData();
                         formData.append('file', file, file.name);
 
-                        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8090'}/images/upload/${createdImage.id}`, {
+                        await fetch(`${import.meta.env.VITE_API_URL || '/api'}/images/upload/${createdImage.id}`, {
                             method: 'POST',
                             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
                             body: formData,
