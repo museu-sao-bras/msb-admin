@@ -80,13 +80,7 @@ export default function LoginPage() {
           </Button>
         </form>
         <div className="mt-4 text-sm text-center">
-          Don't have an account?{" "}
-          <a
-            href="/signup"
-            className="text-primary underline"
-          >
-            Sign up
-          </a>
+          Don't have an account?{" "} Request access from the administrator.
         </div>
       </Card>
     </div>

@@ -165,9 +165,9 @@ const Inventory = () => {
 											<th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
 												Inv #
 											</th>
-											<th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
+											{/* <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
 												Name
-											</th>
+											</th> */}
 											<th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
 												Category
 											</th>
@@ -197,9 +197,9 @@ const Inventory = () => {
 												<td className="py-4 px-4 text-sm">
 													{item.physical_inventory_number}
 												</td>
-												<td className="py-4 px-4 text-sm font-medium">
+												{/* <td className="py-4 px-4 text-sm font-medium">
 													{item.name ?? "—"}
-												</td>
+												</td> */}
 												<td className="py-4 px-4 text-sm">
 													{item.category ?? "—"}
 												</td>
