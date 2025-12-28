@@ -6,7 +6,7 @@ import { Search, Plus, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuthGuard } from "@/hooks/useAuthGuard";
 import { useEffect, useState } from "react";
-import { API_BASE_URL, apiGet, apiPut } from "@/lib/api";
+import { API_BASE_URL, apiGet, apiPut, apiDelete } from "@/lib/api";
 import {
 	Sheet,
 	SheetContent,
@@ -87,28 +87,31 @@ const Inventory = () => {
 		return () => clearTimeout(id);
 	}, [searchTerm]);
 
-	useEffect(() => {
-		setLoading(true);
-		setError(null);
+	const fetchInventory = async (opts?: { silent?: boolean }) => {
+		if (!opts?.silent) {
+			setLoading(true);
+			setError(null);
+		}
 		const q = debouncedSearch ? `&query=${encodeURIComponent(debouncedSearch)}` : "";
-		// when search changes, ensure pagination resets to first page
-		// (if offset is not zero and debouncedSearch changed, reset offset then fetching will re-run)
-		apiGet<{
-			items: InventoryRecord[];
-			total: number;
-			limit: number;
-			offset: number;
-		}>(`/inventory?limit=${limit}&offset=${offset}${q}`)
-			.then((data) => {
-				// normal path
-				setItems(data.items || []);
-				setTotal(data.total ?? 0);
-			})
-			.catch((err) => {
-				console.error(err);
-				setError("Failed to load inventory.");
-			})
-			.finally(() => setLoading(false));
+		try {
+			const data = await apiGet<{
+				items: InventoryRecord[];
+				total: number;
+				limit: number;
+				offset: number;
+			}>(`/inventory?limit=${limit}&offset=${offset}${q}`);
+			setItems(data.items || []);
+			setTotal(data.total ?? 0);
+		} catch (err) {
+			console.error(err);
+			setError("Failed to load inventory.");
+		} finally {
+			if (!opts?.silent) setLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchInventory();
 	}, [limit, offset, debouncedSearch]);
 
 	const apiBase = import.meta.env.VITE_API_URL || "http://localhost:8090";
@@ -118,17 +121,10 @@ const Inventory = () => {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-4xl font-bold text-gradient mb-2">
-							Inventory
-						</h1>
-						<p className="text-muted-foreground">
-							Manage your museum collection
-						</p>
+						<h1 className="text-2xl md:text-4xl font-bold text-gradient mb-2">Inventory</h1>
+						<p className="text-sm md:text-base text-muted-foreground">Manage your museum collection</p>
 					</div>
-					<Button
-						className="glass-hover bg-primary text-primary-foreground hover:bg-primary/90"
-						onClick={() => setShowUploadModal(true)}
-					>
+					<Button className="glass-hover bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setShowUploadModal(true)}>
 						<Plus className="w-4 h-4 mr-2" />
 						Add Item
 					</Button>
@@ -159,7 +155,7 @@ const Inventory = () => {
 					) : (
 						<>
 							<div className="overflow-x-auto">
-								<table className="w-full">
+								<table className="w-full min-w-[700px] md:min-w-full">
 									<thead>
 										<tr className="border-b border-[hsl(var(--glass-border)_/_0.3)]">
 											<th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
@@ -203,9 +199,9 @@ const Inventory = () => {
 												<td className="py-4 px-4 text-sm">
 													{item.category ?? "—"}
 												</td>
-												<td className="py-4 px-4 text-sm max-w-[300px] truncate">
-													{item.description ?? "—"}
-												</td>
+												<td className="py-4 px-4 text-sm max-w-[300px] truncate break-words">
+														{item.description ?? ""}
+													</td>
 												<td className="py-4 px-4 text-sm text-muted-foreground">
 													{item.date_of_article ?? "—"}
 												</td>
@@ -249,6 +245,24 @@ const Inventory = () => {
 													>
 														Edit
 													</Button>
+													<Button
+														className="glass-hover bg-destructive text-destructive-foreground hover:bg-destructive/90"
+														onClick={async () => {
+															if (!confirm('Delete this inventory and all associated items/images? This action cannot be undone.')) return;
+															try {
+																// Optimistically remove from UI
+																setItems(prev => prev.filter(it => it.id !== item.id));
+																await apiDelete(`/inventory/${item.id}`);
+															} catch (err) {
+																console.error('Failed to delete inventory', err);
+																setError('Failed to delete inventory');
+																// Re-fetch or revert UI by refetching list
+																apiGet(`/inventory?limit=${limit}&offset=${offset}`).then(data => setItems((data as any).items || [])).catch(() => {});
+															}
+														}}
+													>
+														Delete
+													</Button>
 												</td>
 											</tr>
 										))}
@@ -284,7 +298,8 @@ const Inventory = () => {
 					open={showUploadModal}
 					onClose={() => setShowUploadModal(false)}
 					onSuccess={() => {
-						// Optionally, refetch inventory list here
+						// Refresh inventory list after successful create
+						fetchInventory();
 						setShowUploadModal(false);
 					}}
 				/>

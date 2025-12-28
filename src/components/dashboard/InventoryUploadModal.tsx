@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { apiPost, apiGet } from "@/lib/api";
+import { apiPost, apiGet, apiPut, API_BASE_URL, apiUpload } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -328,14 +328,29 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
                         const file = originalImage?.file;
                         if (!file) continue;
 
-                        const formData = new FormData();
-                        formData.append('file', file, file.name);
+                        // Use server-side upload: POST the file to the API `/uploads` endpoint,
+                        // which will stream it to R2 and return a `public_url`. Then update
+                        // the image record to reference that proxy URL.
+                        try {
+                            // Server-side upload: POST multipart/form-data to /uploads
+                            const formData = new FormData();
+                            formData.append('file', file, file.name);
+                            // Provide optional filename and inventory_item_id so the server can compute a key
+                            formData.append('filename', file.name);
+                            if (createdItem && createdItem.id) {
+                                formData.append('inventory_item_id', createdItem.id);
+                            }
 
-                        await fetch(`${import.meta.env.VITE_API_URL || '/api'}/images/upload/${createdImage.id}`, {
-                            method: 'POST',
-                            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-                            body: formData,
-                        });
+                            // Use the api helper so auth/401 handling is consistent
+                            const uploadJson = await apiUpload<{ public_url?: string; key?: string }>(`/uploads`, formData);
+                            const publicUrl = uploadJson?.public_url;
+                            if (!publicUrl) {
+                                throw new Error('Upload response missing public_url');
+                            }
+                        } catch (imgErr) {
+                            console.warn('Image upload failed', imgErr);
+                            throw imgErr;
+                        }
                     }
                 }
             } catch (upErr) {

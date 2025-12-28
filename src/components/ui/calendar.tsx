@@ -7,12 +7,106 @@ import { buttonVariants } from "@/components/ui/button";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
-function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
+function Calendar({ className, classNames, showOutsideDays = true, month: monthProp, onMonthChange, ...props }: CalendarProps) {
+  const isControlled = monthProp !== undefined;
+  const [currentMonth, setCurrentMonth] = React.useState<Date>(monthProp ?? new Date());
+
+  React.useEffect(() => {
+    if (monthProp) setCurrentMonth(monthProp);
+  }, [monthProp]);
+
+  const displayMonth = isControlled ? (monthProp as Date) : currentMonth;
+
+  function handleMonthChange(month: Date | undefined) {
+    if (!month) return;
+    if (isControlled) {
+      onMonthChange?.(month);
+    } else {
+      setCurrentMonth(month);
+    }
+  }
+
+  // year range for the select (helpful to jump back many years)
+  const year = displayMonth.getFullYear();
+  const startYear = year - 100;
+  const endYear = year + 10;
+
   return (
-    <DayPicker
-      showOutsideDays={showOutsideDays}
-      className={cn("p-3", className)}
-      classNames={{
+    <div>
+      <div className="flex items-center justify-between px-3 pb-2">
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            className={cn(buttonVariants({ variant: "outline" }), "h-7 w-7 p-0")}
+            onClick={() => handleMonthChange(new Date(year - 10, displayMonth.getMonth(), 1))}
+            aria-label="Jump back 10 years"
+          >
+            «
+          </button>
+          <button
+            type="button"
+            className={cn(buttonVariants({ variant: "outline" }), "h-7 w-7 p-0")}
+            onClick={() => handleMonthChange(new Date(year - 1, displayMonth.getMonth(), 1))}
+            aria-label="Jump back 1 year"
+          >
+            ‹
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <select
+            className="rounded-md border bg-muted px-2 py-1 text-sm text-muted-foreground"
+            value={displayMonth.getMonth()}
+            onChange={(e) => handleMonthChange(new Date(displayMonth.getFullYear(), Number(e.target.value), 1))}
+            aria-label="Select month"
+          >
+            {Array.from({ length: 12 }, (_, i) => i).map((m) => (
+              <option value={m} key={m}>
+                {new Date(0, m).toLocaleString(undefined, { month: "long" })}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="rounded-md border bg-muted px-2 py-1 text-sm text-muted-foreground"
+            value={year}
+            onChange={(e) => handleMonthChange(new Date(Number(e.target.value), displayMonth.getMonth(), 1))}
+            aria-label="Select year"
+          >
+            {Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i).map((y) => (
+              <option value={y} key={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            className={cn(buttonVariants({ variant: "outline" }), "h-7 w-7 p-0")}
+            onClick={() => handleMonthChange(new Date(year + 1, displayMonth.getMonth(), 1))}
+            aria-label="Jump forward 1 year"
+          >
+            ›
+          </button>
+          <button
+            type="button"
+            className={cn(buttonVariants({ variant: "outline" }), "h-7 w-7 p-0")}
+            onClick={() => handleMonthChange(new Date(year + 10, displayMonth.getMonth(), 1))}
+            aria-label="Jump forward 10 years"
+          >
+            »
+          </button>
+        </div>
+      </div>
+
+      <DayPicker
+        month={displayMonth}
+        onMonthChange={handleMonthChange}
+        showOutsideDays={showOutsideDays}
+        className={cn("p-3", className)}
+        classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
         caption: "flex justify-center pt-1 relative items-center",
@@ -45,8 +139,9 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
-      {...props}
-    />
+        {...props}
+      />
+    </div>
   );
 }
 Calendar.displayName = "Calendar";

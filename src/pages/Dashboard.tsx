@@ -99,12 +99,12 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-4xl font-bold text-gradient mb-2">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back to your museum collection management system</p>
+          <h1 className="text-2xl md:text-4xl font-bold text-gradient mb-2">Dashboard</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Welcome back to your museum collection management system</p>
         </div>
 
         {error && <div className="text-red-500">{error}</div>}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatsCard
             title="Total Inventory"
             value={loading ? "..." : counts.inventory}
@@ -149,13 +149,12 @@ const Dashboard = () => {
                       <p className="text-xs text-muted-foreground line-clamp-1 max-w-xs">{item.description}</p>
                     </div>
                     <div className="flex flex-col items-end min-w-[80px]">
-                      {item.inventory_items?.[0]?.images?.[0]?.file_path && (
-                        <img
-                          src={`/api/images/${item.inventory_items[0].images[0].file_path}`}
-                          alt={item.category || "Recent"}
-                          className="w-12 h-12 object-cover rounded-md ml-4 border mb-1"
-                        />
-                      )}
+                      {item.inventory_items?.[0]?.images?.[0]?.file_path && (() => {
+                        const fp = item.inventory_items[0].images[0].file_path;
+                        return (
+                          <img src={fp} alt={item.category || "Recent"} className="w-12 h-12 object-cover rounded-md ml-4 border mb-1" />
+                        );
+                      })()}
                       {item.updated_at && (
                         <span className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(item.updated_at), { addSuffix: true })}
