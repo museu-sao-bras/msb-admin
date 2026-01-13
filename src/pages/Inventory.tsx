@@ -18,8 +18,7 @@ import {
 } from "@/components/ui/sheet";
 import { ImageModal } from "@/components/ui/image-modal";
 import { InventoryUploadModal } from "@/components/dashboard/InventoryUploadModal";
-import { ViewInventorySheet } from "@/components/dashboard/ViewInventorySheet";
-import { EditInventorySheet } from "@/components/dashboard/EditInventorySheet";
+import { InventoryEditModal } from "@/components/dashboard/InventoryEditModal";
 import { Textarea } from "@/components/ui/textarea";
 
 export interface InventoryImage {
@@ -69,7 +68,7 @@ const Inventory = () => {
 	const [loading, setLoading] = useState<boolean>(true);
 	const [error, setError] = useState<string | null>(null);
 
-	const [openItem, setOpenItem] = useState<InventoryRecord | null>(null);
+
 
 	const [searchTerm, setSearchTerm] = useState<string>("");
 	const [debouncedSearch, setDebouncedSearch] = useState<string>("");
@@ -179,16 +178,19 @@ const Inventory = () => {
 											<th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
 												Images
 											</th>
-											<th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">
-												Actions
-											</th>
+											{/* actions removed - row click opens edit modal */}
 										</tr>
 									</thead>
 									<tbody>
 										{items.map((item) => (
 											<tr
 												key={item.id}
-												className="border-b border-[hsl(var(--glass-border)_/_0.2)] hover:bg-[hsl(var(--glass-bg)_/_0.3)] transition-colors"
+												className="border-b border-[hsl(var(--glass-border)_/_0.2)] hover:bg-[hsl(var(--glass-bg)_/_0.3)] transition-colors cursor-pointer"
+												onClick={() => {
+													setEditInventory(item);
+													setEditModalOpen(true);
+												}}
+												role="button"
 											>
 												<td className="py-4 px-4 text-sm">
 													{item.physical_inventory_number}
@@ -227,43 +229,7 @@ const Inventory = () => {
 														)
 														: 0}
 												</td>
-												<td className="flex gap-2 justify-end items-center py-4 px-4">
-													<Button
-														className="glass-hover bg-primary text-primary-foreground hover:bg-primary/90"
-														onClick={() => {
-															setOpenItem(item);
-														}}
-													>
-														View
-													</Button>
-													<Button
-														className="glass-hover bg-secondary text-secondary-foreground hover:bg-secondary/90"
-														onClick={() => {
-															setEditInventory(item);
-															setEditModalOpen(true);
-														}}
-													>
-														Edit
-													</Button>
-													<Button
-														className="glass-hover bg-destructive text-destructive-foreground hover:bg-destructive/90"
-														onClick={async () => {
-															if (!confirm('Delete this inventory and all associated items/images? This action cannot be undone.')) return;
-															try {
-																// Optimistically remove from UI
-																setItems(prev => prev.filter(it => it.id !== item.id));
-																await apiDelete(`/inventory/${item.id}`);
-															} catch (err) {
-																console.error('Failed to delete inventory', err);
-																setError('Failed to delete inventory');
-																// Re-fetch or revert UI by refetching list
-																apiGet(`/inventory?limit=${limit}&offset=${offset}`).then(data => setItems((data as any).items || [])).catch(() => {});
-															}
-														}}
-													>
-														Delete
-													</Button>
-												</td>
+												{/* clicking the row opens the edit modal; actions removed */}
 											</tr>
 										))}
 									</tbody>
@@ -303,19 +269,18 @@ const Inventory = () => {
 						setShowUploadModal(false);
 					}}
 				/>
-				<EditInventorySheet
+				<InventoryEditModal
 					open={editModalOpen}
 					inventory={editInventory}
-					setInventory={inv => setEditInventory(inv)}
 					onClose={() => setEditModalOpen(false)}
-					onSave={() => setEditModalOpen(false)}
+					onSuccess={() => {
+						// Refresh inventory list after successful save
+						fetchInventory();
+						setEditModalOpen(false);
+					}}
 				/>
 
-				<ViewInventorySheet
-					open={!!openItem}
-					item={openItem}
-					onClose={() => setOpenItem(null)}
-				/>
+
 			</div>
 		</DashboardLayout>
 	);
