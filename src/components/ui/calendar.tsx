@@ -28,7 +28,8 @@ function Calendar({ className, classNames, showOutsideDays = true, month: monthP
 
   // year range for the select (helpful to jump back many years)
   const year = displayMonth.getFullYear();
-  const startYear = year - 100;
+  // allow selection as far back as 1750
+  const startYear = 1300;
   const endYear = year + 10;
 
   return (

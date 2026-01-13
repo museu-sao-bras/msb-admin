@@ -1,15 +1,17 @@
 
 import React, { useState, useEffect, useRef } from "react";
-import { apiPut, apiGet, apiUpload } from "@/lib/api";
+import { apiPut, apiGet, apiUpload, apiDelete } from "@/lib/api";
+import { getCategories } from "@/lib/categories";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, Loader } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { ImageModal } from "@/components/ui/image-modal";
 
 interface ImageInput {
   file_path: string;
@@ -78,6 +80,7 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
   });
 
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [loanBeginPickerOpen, setLoanBeginPickerOpen] = useState<number | null>(null);
@@ -91,6 +94,11 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
   const [donationLoading, setDonationLoading] = useState(false);
   const [activeDonIdx, setActiveDonIdx] = useState<number | null>(null);
   const donationDebounceRef = useRef<number | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoryQuery, setCategoryQuery] = useState<string>(form?.category || "");
+  const [debouncedCategoryQuery, setDebouncedCategoryQuery] = useState<string>("");
+  const [categoryFocused, setCategoryFocused] = useState(false);
 
   useEffect(() => {
     if (open && inventory) {
@@ -159,7 +167,7 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
   };
 
   // Small preview component for image fields. Shows local File via object URL or existing file_path.
-  const PreviewImage = ({ img }: { img: ImageInput }) => {
+  const PreviewImage = ({ img, onClick }: { img: ImageInput; onClick?: (src: string) => void }) => {
     const [src, setSrc] = useState<string | null>(null);
     useEffect(() => {
       let url: string | null = null;
@@ -176,9 +184,17 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
 
     if (!src) return null;
     return (
-      <img src={src} alt={img.description || 'Image'} className="w-32 h-20 object-cover rounded-md ml-0 border" />
+      <img
+        src={src}
+        alt={img.description || 'Image'}
+        className="w-32 h-20 object-cover rounded-md ml-0 border cursor-pointer"
+        onClick={() => onClick && src && onClick(src)}
+      />
     );
   };
+
+  // lightbox state for enlarged image preview
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const handleDonationChange = (idx: number, field: keyof DonationInfo, value: string) => {
     setForm(prev => prev ? ({ ...prev, donation_information: (prev.donation_information || []).map((d, i) => i === idx ? ({ ...(d || {}), [field]: value }) : d) }) : prev);
@@ -207,6 +223,37 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
     }, 400) as unknown as number;
     return () => { if (donationDebounceRef.current) window.clearTimeout(donationDebounceRef.current as any); };
   }, [donationQuery, activeDonIdx]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setCategoriesLoading(true);
+      try {
+        const list = await getCategories();
+        if (!cancelled) setCategories(list || []);
+      } catch (err) {
+        console.warn('Failed to load categories', err);
+        if (!cancelled) setCategories([]);
+      } finally {
+        if (!cancelled) setCategoriesLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
+  useEffect(() => {
+    setCategoryQuery(form?.category || "");
+  }, [open, form?.category]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedCategoryQuery(categoryQuery.trim()), 300);
+    return () => window.clearTimeout(id);
+  }, [categoryQuery]);
+
+  const categorySuggestions = debouncedCategoryQuery
+    ? categories.filter(c => c.toLowerCase().includes(debouncedCategoryQuery.toLowerCase()))
+    : [];
 
   const applyDonationResult = (idx: number, result: any) => {
     handleDonationChange(idx, 'donor_name', result.donor_name || '');
@@ -298,6 +345,23 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
     }
   };
 
+  const handleDeleteInventory = async () => {
+    if (!inventory?.id) return;
+    if (!window.confirm('Delete this inventory item? This cannot be undone.')) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await apiDelete(`/inventory/${inventory.id}`);
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err) {
+      console.error('Delete failed', err);
+      setError('Failed to delete inventory');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (!open || !form) return null;
 
   return (
@@ -315,11 +379,29 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
               onChange={e => handleChange('physical_inventory_number', e.target.value)}
               required
             />
-            <Input
-              placeholder="Category"
-              value={form.category || ''}
-              onChange={e => handleChange('category', e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                placeholder="Category"
+                value={categoryQuery}
+                onChange={e => setCategoryQuery(e.target.value)}
+                onFocus={() => setCategoryFocused(true)}
+                onBlur={() => { handleChange('category', categoryQuery); setTimeout(() => setCategoryFocused(false), 100); }}
+              />
+              {categoriesLoading && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <Loader className="w-4 h-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {categoryFocused && categorySuggestions.length > 0 && (
+                <div className="absolute z-50 bg-background border rounded mt-1 w-full max-h-48 overflow-auto shadow">
+                  {categorySuggestions.map(s => (
+                    <div key={s} className="p-2 hover:bg-accent/10 cursor-pointer" onMouseDown={() => { handleChange('category', s); setCategoryQuery(s); }}>
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
               <PopoverTrigger asChild>
                 <div className="w-full relative">
@@ -465,12 +547,12 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
                       {item.images.length > 1 && (<button type="button" className="text-destructive hover:bg-destructive/10 rounded-full p-1" onClick={() => handleRemoveImage(itemIdx, item.images.length - 1)} title="Delete Last Image"><Trash2 className="w-4 h-4" /></button>)}
                     </div>
                   </div>
-                  {(item.images || []).map((img, imgIdx) => (
+                      {(item.images || []).map((img, imgIdx) => (
                     <div key={imgIdx} className="mb-4 border p-2 rounded relative bg-[hsl(var(--glass-bg)_/_0.1)] flex flex-col gap-4">
                       <h5 className="font-semibold mb-4">Image {imgIdx + 1}</h5>
                       {/* show preview of current image (either existing URL or newly selected file) */}
-                      <PreviewImage img={img} />
-                      <Input type="file" accept="image/*" onChange={e => { const file = e.target.files?.[0] || null; handleImageFileChange(itemIdx, imgIdx, file); }} />
+                      <PreviewImage img={img} onClick={(s) => setLightboxSrc(s)} />
+                      <Input type="file" accept="image/*" capture="environment" onChange={e => { const file = e.target.files?.[0] || null; handleImageFileChange(itemIdx, imgIdx, file); }} />
                       <Input placeholder="Description" value={img.description || ''} onChange={e => handleImageChange(itemIdx, imgIdx, 'description', e.target.value)} />
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Popover open={dateTakenPickerOpen?.itemIdx === itemIdx && dateTakenPickerOpen?.imgIdx === imgIdx} onOpenChange={open => setDateTakenPickerOpen(open ? { itemIdx, imgIdx } : null)}>
@@ -495,8 +577,10 @@ export function InventoryEditModal({ open, onClose, inventory, onSuccess }: { op
 
           {error && <div className="text-destructive text-sm">{error}</div>}
           <Button className="w-full" type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save'}</Button>
+          <Button className="w-full mt-2" variant="destructive" type="button" onClick={handleDeleteInventory} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete Inventory'}</Button>
         </form>
       </Card>
+      <ImageModal open={!!lightboxSrc} onOpenChange={(open) => { if (!open) setLightboxSrc(null); }} src={lightboxSrc || ''} />
     </div>
   );
 }

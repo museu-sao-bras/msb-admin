@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { apiPost, apiGet, apiPut, API_BASE_URL, apiUpload } from "@/lib/api";
+import { getCategories } from "@/lib/categories";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, Loader } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
+import { ImageModal } from "@/components/ui/image-modal";
 
 interface ImageInput {
     file_path: string;
@@ -115,6 +117,11 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
     const [donationLoading, setDonationLoading] = useState(false);
     const [activeDonIdx, setActiveDonIdx] = useState<number | null>(null);
     const donationDebounceRef = useRef<number | null>(null);
+    const [categories, setCategories] = useState<string[]>([]);
+    const [categoriesLoading, setCategoriesLoading] = useState(false);
+    const [categoryQuery, setCategoryQuery] = useState<string>(form.category || "");
+    const [debouncedCategoryQuery, setDebouncedCategoryQuery] = useState<string>("");
+    const [categoryFocused, setCategoryFocused] = useState(false);
 
     const handleChange = (field: keyof InventoryInput, value: string) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -225,6 +232,30 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
         }));
     };
 
+    // small preview component + lightbox state
+    const PreviewImage = ({ img, onClick }: { img: ImageInput; onClick?: (src: string) => void }) => {
+        const [src, setSrc] = useState<string | null>(null);
+        useEffect(() => {
+            let url: string | null = null;
+            if (img?.file) {
+                url = URL.createObjectURL(img.file);
+                setSrc(url);
+            } else if (img?.file_path) {
+                setSrc(img.file_path);
+            } else {
+                setSrc(null);
+            }
+            return () => { if (url) URL.revokeObjectURL(url); };
+        }, [img?.file, img?.file_path]);
+
+        if (!src) return null;
+        return (
+            <img src={src} alt={img.description || 'Image'} className="w-32 h-20 object-cover rounded-md ml-0 border cursor-pointer" onClick={() => onClick && src && onClick(src)} />
+        );
+    };
+
+    const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
     const handleDonationChange = (idx: number, field: keyof DonationInfo, value: string) => {
         setForm(prev => ({
             ...prev,
@@ -259,6 +290,40 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
             if (donationDebounceRef.current) window.clearTimeout(donationDebounceRef.current);
         };
     }, [donationQuery, activeDonIdx]);
+
+    // fetch categories when modal opens
+    useEffect(() => {
+        if (!open) return;
+        let cancelled = false;
+        (async () => {
+            setCategoriesLoading(true);
+                try {
+                    const list = await getCategories();
+                    if (!cancelled) setCategories(list || []);
+                } catch (err) {
+                    console.warn('Failed to load categories', err);
+                    if (!cancelled) setCategories([]);
+                } finally {
+                    if (!cancelled) setCategoriesLoading(false);
+                }
+        })();
+        return () => { cancelled = true; };
+    }, [open]);
+
+    // keep local categoryQuery synced when modal (re)opens or form.category changes externally
+    useEffect(() => {
+        setCategoryQuery(form.category || "");
+    }, [open]);
+
+    // debounce the category query to reduce filtering frequency
+    useEffect(() => {
+        const id = window.setTimeout(() => setDebouncedCategoryQuery(categoryQuery.trim()), 300);
+        return () => window.clearTimeout(id);
+    }, [categoryQuery]);
+
+    const categorySuggestions = debouncedCategoryQuery
+        ? categories.filter(c => c.toLowerCase().includes(debouncedCategoryQuery.toLowerCase()))
+        : [];
 
     const applyDonationResult = (idx: number, result: any) => {
         // populate fields from the selected existing donation info
@@ -385,11 +450,35 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
                             onChange={e => handleChange("physical_inventory_number", e.target.value)}
                             required
                         />
-                        <Input
-                            placeholder="Category"
-                            value={form.category || ""}
-                            onChange={e => handleChange("category", e.target.value)}
-                        />
+                        <div className="relative">
+                            <Input
+                                placeholder="Category"
+                                value={categoryQuery}
+                                onChange={e => {
+                                    setCategoryQuery(e.target.value);
+                                }}
+                                onFocus={() => setCategoryFocused(true)}
+                                onBlur={() => {
+                                    handleChange("category", categoryQuery);
+                                    // delay hiding so mouse selection can register
+                                    setTimeout(() => setCategoryFocused(false), 100);
+                                }}
+                            />
+                            {categoriesLoading && (
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                    <Loader className="w-4 h-4 animate-spin text-muted-foreground" />
+                                </div>
+                            )}
+                            {categoryFocused && categorySuggestions.length > 0 && (
+                                <div className="absolute z-50 bg-background border rounded mt-1 w-full max-h-48 overflow-auto shadow">
+                                    {categorySuggestions.map(s => (
+                                        <div key={s} className="p-2 hover:bg-accent/10 cursor-pointer" onMouseDown={() => { handleChange("category", s); setCategoryQuery(s); }}>
+                                            {s}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
                             <PopoverTrigger asChild>
                                 <div className="w-full relative">
@@ -655,9 +744,11 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
                                     {item.images.map((img, imgIdx) => (
                                         <div key={imgIdx} className="mb-4 border p-2 rounded relative bg-[hsl(var(--glass-bg)_/_0.1)] flex flex-col gap-4">
                                             <h5 className="font-semibold mb-4">Image {imgIdx + 1}</h5>
+                                            <PreviewImage img={img} onClick={(s) => setLightboxSrc(s)} />
                                             <Input
                                                 type="file"
                                                 accept="image/*"
+                                                capture="environment"
                                                 onChange={e => {
                                                     const file = e.target.files?.[0] || null;
                                                     handleImageFileChange(itemIdx, imgIdx, file);
@@ -709,6 +800,7 @@ export function InventoryUploadModal({ open, onClose, onSuccess }: { open: boole
                     </Button>
                 </form>
             </Card>
+            <ImageModal open={!!lightboxSrc} onOpenChange={(open) => { if (!open) setLightboxSrc(null); }} src={lightboxSrc || ''} />
         </div>
     );
 }

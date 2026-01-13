@@ -11,7 +11,7 @@ interface ImageModalProps {
 export function ImageModal({ open, onOpenChange, src, alt }: ImageModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-full p-0 bg-transparent border-none shadow-none flex items-center justify-center">
+      <DialogContent closeButtonClassName="text-orange-500 hover:text-orange-600" className="max-w-3xl w-full p-0 bg-transparent border-none shadow-none flex items-center justify-center">
         <img
           src={src}
           alt={alt || "Image"}
