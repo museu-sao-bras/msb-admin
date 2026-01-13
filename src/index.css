@@ -2,55 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Light Theme Design System 
+   Format: H S L
 */
 
 @layer base {
   :root {
-    --background: 240 30% 8%;
-    --foreground: 240 10% 98%;
+    /* Main surfaces: Very light/white */
+    --background: 240 20% 98%;
+    --foreground: 240 10% 10%;
 
-    --card: 240 25% 12%;
-    --card-foreground: 240 10% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
 
-    --popover: 240 28% 10%;
-    --popover-foreground: 240 10% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
 
-    --primary: 45 100% 65%;
-    --primary-foreground: 240 30% 8%;
+    /* Primary: Slightly deeper gold for better contrast on white */
+    --primary: 42 90% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 260 50% 50%;
-    --secondary-foreground: 240 10% 98%;
+    --secondary: 260 45% 45%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 240 20% 20%;
-    --muted-foreground: 240 10% 70%;
+    --muted: 240 10% 95%;
+    --muted-foreground: 240 10% 40%;
 
-    --accent: 280 60% 60%;
-    --accent-foreground: 240 10% 98%;
+    --accent: 280 50% 50%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 70% 60%;
-    --destructive-foreground: 240 10% 98%;
+    --destructive: 0 84% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 240 20% 25%;
-    --input: 240 20% 20%;
-    --ring: 45 100% 65%;
+    /* Borders and Inputs: Subtle greys */
+    --border: 240 10% 90%;
+    --input: 240 10% 90%;
+    --ring: 42 90% 45%;
 
     --radius: 1rem;
 
-    --glass-bg: 240 25% 15%;
-    --glass-border: 240 20% 30%;
-    --gradient-start: 260 60% 25%;
-    --gradient-end: 280 50% 20%;
+    /* Glass and Gradients: Soft and airy */
+    --glass-bg: 0 0% 100%;
+    --glass-border: 240 10% 85%;
+    --gradient-start: 240 30% 95%;
+    --gradient-end: 0 0% 100%;
 
-    --sidebar-background: 240 30% 10%;
-    --sidebar-foreground: 240 10% 90%;
-    --sidebar-primary: 45 100% 65%;
-    --sidebar-primary-foreground: 240 30% 8%;
-    --sidebar-accent: 240 25% 18%;
-    --sidebar-accent-foreground: 240 10% 98%;
-    --sidebar-border: 240 20% 20%;
-    --sidebar-ring: 45 100% 65%;
+    /* Sidebar: Slight contrast from the main background */
+    --sidebar-background: 240 10% 96%;
+    --sidebar-foreground: 240 10% 20%;
+    --sidebar-primary: 42 90% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 10% 92%;
+    --sidebar-accent-foreground: 240 10% 10%;
+    --sidebar-border: 240 10% 90%;
+    --sidebar-ring: 42 90% 45%;
   }
 }
 
@@ -60,6 +65,7 @@ All colors MUST be HSL.
   }
 
   body {
+    /* Gradient changed to be very subtle for a clean light look */
     @apply bg-gradient-to-br from-[hsl(var(--gradient-start))] to-[hsl(var(--gradient-end))] text-foreground min-h-screen;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
@@ -67,11 +73,12 @@ All colors MUST be HSL.
 
 @layer utilities {
   .glass {
-    @apply bg-[hsl(var(--glass-bg)_/_0.4)] backdrop-blur-xl border border-[hsl(var(--glass-border)_/_0.3)] shadow-xl;
+    /* Increased transparency and softened shadow for light mode */
+    @apply bg-[hsl(var(--glass-bg)_/_0.7)] backdrop-blur-xl border border-[hsl(var(--glass-border)_/_0.5)] shadow-sm;
   }
   
   .glass-hover {
-    @apply transition-all duration-300 hover:bg-[hsl(var(--glass-bg)_/_0.6)] hover:border-[hsl(var(--glass-border)_/_0.5)] hover:shadow-2xl hover:-translate-y-0.5;
+    @apply transition-all duration-300 hover:bg-[hsl(var(--glass-bg)_/_0.9)] hover:border-[hsl(var(--glass-border)_/_0.8)] hover:shadow-lg hover:-translate-y-0.5;
   }
 
   .text-gradient {
@@ -79,12 +86,10 @@ All colors MUST be HSL.
   }
 }
 
-/* Responsive root container */
 #root {
   @apply max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12;
 }
 
-/* small responsive image helper */
 .responsive-img {
   @apply w-full h-auto max-w-full rounded-md;
 }

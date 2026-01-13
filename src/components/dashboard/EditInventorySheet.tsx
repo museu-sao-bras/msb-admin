@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import React, { useState } from "react";
-import { apiPut } from "@/lib/api";
+import { apiPut, apiUpload } from "@/lib/api";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -20,6 +20,14 @@ interface Props {
 export const EditInventorySheet: React.FC<Props> = ({ open, inventory, setInventory, onClose, onSave }) => {
     if (!inventory) return null;
     const [donationDatePickerOpen, setDonationDatePickerOpen] = useState<number | null>(null);
+
+    const handleImageFileChange = (itemIdx: number, imgIdx: number, file: File | null) => {
+        const updatedItems = [...(inventory.inventory_items || [])];
+        const updatedImages: any[] = [...(updatedItems[itemIdx].images || [])];
+        updatedImages[imgIdx] = { ...(updatedImages[imgIdx] || {}), file, file_path: file ? file.name : (updatedImages[imgIdx]?.file_path ?? '') } as any;
+        updatedItems[itemIdx] = { ...updatedItems[itemIdx], images: updatedImages } as any;
+        setInventory({ ...inventory, inventory_items: updatedItems });
+    };
 
     const handleDonationChange = (idx: number, field: string, value: string) => {
         const updated = [...(inventory.donation_information || [])];
@@ -255,9 +263,54 @@ export const EditInventorySheet: React.FC<Props> = ({ open, inventory, setInvent
                                 ...inventory,
                                 donation_information: (inventory.donation_information || []).map(d => ({ ...d, inventory_id: inventory.id })),
                             } as any;
-                            await apiPut(`/inventory/${inventory.id}`, payload);
-                            if (onSave) onSave();
-                            onClose();
+
+                            // helper to strip File objects before JSON serialization
+                            const stripFiles = (obj: any): any => {
+                                if (Array.isArray(obj)) return obj.map(stripFiles);
+                                if (obj && typeof obj === 'object') {
+                                    const out: any = {};
+                                    for (const k in obj) {
+                                        const v = obj[k];
+                                        if (v instanceof File) continue;
+                                        out[k] = stripFiles(v);
+                                    }
+                                    return out;
+                                }
+                                return obj;
+                            };
+
+                            try {
+                                await apiPut(`/inventory/${inventory.id}`, stripFiles(payload));
+
+                                // upload any selected image files
+                                try {
+                                    for (let i = 0; i < (inventory.inventory_items || []).length; i++) {
+                                        const it = inventory.inventory_items[i];
+                                        if (!it || !it.images) continue;
+                                        for (let j = 0; j < it.images.length; j++) {
+                                            const img = it.images[j];
+                                            const file = (img as any)?.file as File | undefined | null;
+                                            if (!file) continue;
+                                            const formData = new FormData();
+                                            formData.append('file', file, file.name);
+                                            formData.append('filename', file.name);
+                                            if (it && it.id) formData.append('inventory_item_id', it.id);
+                                            await apiUpload('/uploads', formData);
+                                        }
+                                    }
+                                } catch (upErr) {
+                                    console.warn('One or more image uploads failed', upErr);
+                                    // Let user know uploads failed but keep the saved inventory
+                                    // using a simple alert for now
+                                    alert('Saved inventory but some image uploads failed.');
+                                }
+
+                                if (onSave) onSave();
+                                onClose();
+                            } catch (err) {
+                                console.error('Failed saving inventory', err);
+                                alert('Failed to save inventory');
+                            }
                         }}
                     >
                         Save
