@@ -6,6 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Users from "./pages/Users";
+import Volunteer from "./pages/Volunteer";
+import Bookings from "./pages/Bookings";
+import Event from "./pages/Event";
+import Exhibition from "./pages/Exhibition";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -23,7 +27,11 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/inventory" element={<Inventory />} />
+          <Route path="/exhibition" element={<Exhibition />} />
+          <Route path="/booking" element={<Bookings />} />
+          <Route path="/events" element={<Event />} />
           <Route path="/users" element={<Users />} />
+          <Route path="/volunteer" element={<Volunteer />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,7 +1,9 @@
 import { 
     LayoutDashboard, 
     Package, 
-    Users, 
+    Users,
+    Image,
+    UserPlus,
     ChevronLeft, 
     ChevronRight, 
     LogOut 
@@ -13,9 +15,12 @@ import { useEffect, useState } from "react";
 const navItems = [
     { title: "Dashboard", icon: LayoutDashboard, path: "/" },
     { title: "Inventory", icon: Package, path: "/inventory" },
-    { title: "Users", icon: Users, path: "/users" }
+    { title: "Exhibitions", icon: Image, path: "/exhibition" },
+    { title: "Users", icon: Users, path: "/users" },
+    { title: "Volunteers", icon: UserPlus, path: "/volunteer" },
+    { title: "Bookings", icon: UserPlus, path: "/booking" },
+    { title: "Events", icon: Image, path: "/events" },
 ];
-
 export const SidebarContent = ({ isCollapsed }: { isCollapsed: boolean }) => {
     const [user, setUser] = useState<{ user_name?: string; email?: string } | null>(null);
 
